@@ -1,0 +1,46 @@
+# Data directories (will be pulled from S3 via DVC)
+leftImg8bit/
+gtFine/
+
+# Environment files (for security)
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# DVC
+.dvc/
+.dvcignore
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

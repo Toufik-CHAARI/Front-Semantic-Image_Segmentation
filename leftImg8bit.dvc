@@ -1,0 +1,6 @@
+outs:
+- md5: 53d999130fdeb4890a468c3751ee937c.dir
+  size: 644240912
+  nfiles: 267
+  hash: md5
+  path: leftImg8bit

@@ -3,6 +3,8 @@
 env/ 
 venv/ 
 ENV/ 
+leftImg8bit/
+gtFine/
 env.bak/ 
 venv.bak/
 __pycache__

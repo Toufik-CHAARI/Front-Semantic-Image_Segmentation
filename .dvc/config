@@ -1,0 +1,5 @@
+[core]
+    no_scm = True
+    remote = storage
+['remote "storage"']
+    url = s3://frontend-semantic-image-segmentation/semantic-segmentation-data
