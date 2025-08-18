@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install DVC with S3 support (if not already in requirements.txt)
 RUN pip install --no-cache-dir dvc[s3] || true
 
-# Copy application code
+# Copy application code (including the new app/ directory structure)
 COPY . .
 
 # Create data directories
