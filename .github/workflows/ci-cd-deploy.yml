@@ -26,11 +26,47 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Run tests
+    - name: Run linting
       run: |
-        python -c "import streamlit; print('Streamlit version:', streamlit.__version__)"
-        python -c "import dvc; print('DVC version:', dvc.__version__)"
-        echo "✅ Basic dependency tests passed"
+        echo "🔍 Running linting..."
+        flake8 app/ tests/ --max-line-length=88 --extend-ignore=E203,W503
+    
+    - name: Check code formatting
+      run: |
+        echo "🎨 Checking code formatting..."
+        black --check app/ tests/
+        isort --check-only app/ tests/
+    
+    - name: Run security scan
+      run: |
+        echo "🔒 Running security scan..."
+        bandit -r app/ -f json -o bandit-report.json
+    
+    - name: Run type checking
+      run: |
+        echo "🔍 Running type checking..."
+        mypy app/ --ignore-missing-imports
+    
+    - name: Run tests with coverage
+      run: |
+        echo "🧪 Running tests with coverage..."
+        pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=80
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          coverage.xml
+          bandit-report.json
+          htmlcov/
 
   build-production-image:
     needs: test

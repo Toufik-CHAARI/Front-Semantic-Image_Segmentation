@@ -123,9 +123,66 @@ dvc-status: ## Show DVC status
 .PHONY: test
 test: ## Run tests
 	$(call print_status,Running tests...)
-	@python -c "import streamlit; print('Streamlit version:', streamlit.__version__)"
-	@python -c "import dvc; print('DVC version:', dvc.__version__)"
-	$(call print_success,Tests completed successfully)
+	@pytest tests/ -v
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage
+	$(call print_status,Running tests with coverage...)
+	@pytest tests/ --cov=app --cov-report=term-missing --cov-report=html:htmlcov --cov-fail-under=40
+
+.PHONY: test-html
+test-html: ## Run tests with HTML report
+	$(call print_status,Running tests with HTML report...)
+	@pytest tests/ --html=test-report.html --self-contained-html
+
+# Code quality targets
+.PHONY: lint
+lint: ## Run linting
+	$(call print_status,Running linting...)
+	@flake8 app/ tests/ --max-line-length=88 --extend-ignore=E203,W503
+
+.PHONY: format
+format: ## Format code
+	$(call print_status,Formatting code...)
+	@black app/ tests/
+	@isort app/ tests/
+
+.PHONY: format-check
+format-check: ## Check code formatting
+	$(call print_status,Checking code formatting...)
+	@black --check app/ tests/
+	@isort --check-only app/ tests/
+
+.PHONY: security-scan
+security-scan: ## Run security scan
+	$(call print_status,Running security scan...)
+	@bandit -r app/ -f json -o bandit-report.json
+
+.PHONY: type-check
+type-check: ## Run type checking
+	$(call print_status,Running type checking...)
+	@mypy app/ --ignore-missing-imports
+
+.PHONY: quality-check
+quality-check: ## Run all quality checks
+	$(call print_status,Running quality checks...)
+	@make lint
+	@make format-check
+	@make test-coverage
+	@make security-scan
+
+.PHONY: quick-quality
+quick-quality: ## Quick quality check (without tests)
+	$(call print_status,Running quick quality check...)
+	@make lint
+	@make format-check
+	@make security-scan
+
+.PHONY: full-quality
+full-quality: ## Full quality check with tests
+	$(call print_status,Running full quality check...)
+	@make quality-check
+	@make test-html
 
 .PHONY: test-local
 test-local: ## Test local Streamlit app
@@ -159,13 +216,30 @@ clean: ## Clean up Docker containers and images
 	@docker system prune -f
 	$(call print_success,Cleanup completed)
 
+.PHONY: clean-test
+clean-test: ## Clean up test artifacts
+	$(call print_status,Cleaning up test artifacts...)
+	@rm -rf htmlcov/
+	@rm -rf .pytest_cache/
+	@rm -rf __pycache__/
+	@rm -rf app/__pycache__/
+	@rm -rf tests/__pycache__/
+	@rm -f .coverage
+	@rm -f coverage.xml
+	@rm -f test-report.html
+	@rm -f bandit-report.json
+	$(call print_success,Test artifacts cleaned)
+
 .PHONY: clean-all
-clean-all: ## Clean up everything including data
+clean-all: ## Clean up everything including data and test artifacts
 	$(call print_status,Cleaning up everything...)
 	@make clean
+	@make clean-test
 	@rm -rf .dvc/cache
 	@rm -f *.dvc
 	$(call print_success,Complete cleanup finished)
+
+
 
 .PHONY: info
 info: ## Show build information
