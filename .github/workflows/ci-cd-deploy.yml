@@ -1,0 +1,170 @@
+name: CI/CD Pipeline with EC2 Deployment
+
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+    branches: [ master, dev ]
+
+env:
+  AWS_REGION: eu-west-3
+  ECR_REPOSITORY: streamlit-segmentation-app
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        python -c "import streamlit; print('Streamlit version:', streamlit.__version__)"
+        python -c "import dvc; print('DVC version:', dvc.__version__)"
+        echo "✅ Basic dependency tests passed"
+
+  build-production-image:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    
+    - name: Build and push Docker image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: production
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        DVC_S3_BUCKET: ${{ secrets.DVC_S3_BUCKET }}
+        GITHUB_ACTIONS: true
+      run: |
+        echo "🔨 Building Docker image..."
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        echo "📤 Pushing image to ECR..."
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "✅ Image built and pushed successfully!"
+
+  deploy-to-ec2:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-production-image
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
+    environment: production
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      
+    - name: Deploy to EC2
+      run: |
+        if [ "${{ secrets.EC2_INSTANCE_ID }}" = "" ]; then
+          echo "⚠️ EC2_INSTANCE_ID not set, skipping deployment"
+          exit 0
+        fi
+        echo "🚀 Deploying to EC2 instance: ${{ secrets.EC2_INSTANCE_ID }}"
+        
+        # Send deployment commands directly to EC2
+        echo "Sending deployment commands to EC2..."
+        aws ssm send-command \
+          --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=[
+            "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
+            "echo \"AWS Account ID: $ACCOUNT_ID\"",
+            "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+            "echo \"Stopping existing container...\"",
+            "docker stop streamlit-segmentation-container || true",
+            "docker rm streamlit-segmentation-container || true",
+            "echo \"Removing old image...\"",
+            "docker rmi $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production || true",
+            "echo \"Pulling latest image...\"",
+            "docker pull $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production",
+            "echo \"Starting new container...\"",
+            "docker run -d --name streamlit-segmentation-container -p 8501:8501 --restart=always -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_DEFAULT_REGION=${{ env.AWS_REGION }} -e DVC_S3_BUCKET=${{ secrets.DVC_S3_BUCKET }} $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production",
+            "echo \"Waiting for application to start...\"",
+            "sleep 20",
+            "echo \"Testing health endpoint...\"",
+            "for i in {1..5}; do if curl -f http://localhost:8501 > /dev/null 2>&1; then echo \"✅ Health check passed!\"; break; else echo \"⏳ Health check attempt $i failed, retrying...\"; sleep 5; fi; done",
+            "if curl -f http://localhost:8501 > /dev/null 2>&1; then echo \"✅ Deployment successful!\"; echo \"🌐 Application is accessible at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8501\"; else echo \"❌ Deployment failed - health check failed\"; docker logs streamlit-segmentation-container; exit 1; fi"
+          ]' \
+          --region ${{ env.AWS_REGION }}
+        
+        echo "✅ Deployment command sent successfully!"
+        
+    - name: Wait for deployment completion
+      run: |
+        if [ "${{ secrets.EC2_INSTANCE_ID }}" = "" ]; then
+          echo "⚠️ EC2_INSTANCE_ID not set, skipping deployment completion check"
+          exit 0
+        fi
+        echo "⏳ Waiting for deployment to complete..."
+        sleep 30
+        
+        # Get EC2 public IP
+        EC2_IP=$(aws ec2 describe-instances \
+          --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+          --query 'Reservations[0].Instances[0].PublicIpAddress' \
+          --output text \
+          --region ${{ env.AWS_REGION }})
+        
+        echo "EC2 Public IP: $EC2_IP"
+        
+        # Test the deployment
+        echo "🧪 Testing deployment..."
+        for i in {1..3}; do
+          if curl -f http://$EC2_IP:8501 > /dev/null 2>&1; then
+            echo "✅ Deployment test successful!"
+            break
+          else
+            echo "⏳ Test attempt $i failed, retrying..."
+            sleep 10
+          fi
+        done
+        
+    - name: Output deployment results
+      run: |
+        if [ "${{ secrets.EC2_INSTANCE_ID }}" = "" ]; then
+          echo "⚠️ EC2_INSTANCE_ID not set, no deployment results to show"
+          exit 0
+        fi
+        # Get EC2 public IP
+        EC2_IP=$(aws ec2 describe-instances \
+          --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+          --query 'Reservations[0].Instances[0].PublicIpAddress' \
+          --output text \
+          --region ${{ env.AWS_REGION }})
+        
+        echo "🎉 Automatic deployment completed!"
+        echo "🌐 Application is accessible at: http://$EC2_IP:8501"
+        echo "📊 Streamlit dashboard is now live!"

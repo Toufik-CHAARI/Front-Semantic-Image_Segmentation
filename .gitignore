@@ -5,6 +5,7 @@ venv/
 ENV/ 
 leftImg8bit/
 gtFine/
+local_readme/
 env.bak/ 
 venv.bak/
 __pycache__
