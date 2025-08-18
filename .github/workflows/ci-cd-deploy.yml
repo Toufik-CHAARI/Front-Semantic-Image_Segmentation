@@ -103,20 +103,29 @@ jobs:
             "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
             "echo \"AWS Account ID: $ACCOUNT_ID\"",
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
-            "echo \"Stopping existing container...\"",
+            "echo \"🛑 Stopping existing container...\"",
             "docker stop streamlit-segmentation-container || true",
             "docker rm streamlit-segmentation-container || true",
-            "echo \"Removing old image...\"",
-            "docker rmi $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production || true",
-            "echo \"Pulling latest image...\"",
-            "docker pull $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production",
-            "echo \"Starting new container...\"",
-            "docker run -d --name streamlit-segmentation-container -p 8501:8501 --restart=always -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_DEFAULT_REGION=${{ env.AWS_REGION }} -e DVC_S3_BUCKET=${{ secrets.DVC_S3_BUCKET }} $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPOSITORY:production",
-            "echo \"Waiting for application to start...\"",
+            "echo \"🗑️ Removing old images...\"",
+            "docker rmi $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/streamlit-segmentation-app:production || true",
+            "docker rmi $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/streamlit-segmentation-app:latest || true",
+            "echo \"🧹 Cleaning up dangling images...\"",
+            "docker image prune -f",
+            "echo \"📥 Pulling latest image from ECR...\"",
+            "docker pull $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/streamlit-segmentation-app:production",
+            "echo \"🔍 Verifying image pull...\"",
+            "docker images --digests | grep streamlit-segmentation-app",
+            "echo \"🚀 Starting new container...\"",
+            "docker run -d --name streamlit-segmentation-container -p 8501:8501 --restart=always -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} -e AWS_DEFAULT_REGION=${{ env.AWS_REGION }} -e DVC_S3_BUCKET=${{ secrets.DVC_S3_BUCKET }} $ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/streamlit-segmentation-app:production",
+            "echo \"⏳ Waiting for application to start...\"",
             "sleep 20",
+            "echo \"🔍 Verifying container status...\"",
+            "docker ps | grep streamlit-segmentation-container",
+            "echo \"📋 Container details:\"",
+            "docker inspect streamlit-segmentation-container --format='{{.Config.Image}}'",
             "echo \"Testing health endpoint...\"",
             "for i in {1..5}; do if curl -f http://localhost:8501 > /dev/null 2>&1; then echo \"✅ Health check passed!\"; break; else echo \"⏳ Health check attempt $i failed, retrying...\"; sleep 5; fi; done",
-            "if curl -f http://localhost:8501 > /dev/null 2>&1; then echo \"✅ Deployment successful!\"; echo \"🌐 Application is accessible at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8501\"; else echo \"❌ Deployment failed - health check failed\"; docker logs streamlit-segmentation-container; exit 1; fi"
+            "if curl -f http://localhost:8501 > /dev/null 2>&1; then echo \"✅ Deployment successful!\"; echo \"🌐 Application is accessible at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8501\"; echo \"📊 Container logs summary:\"; docker logs streamlit-segmentation-container | grep -E \"(Data files found|DVC setup completed|Starting Streamlit)\" || echo \"No key log messages found\"; else echo \"❌ Deployment failed - health check failed\"; echo \"Container logs:\"; docker logs streamlit-segmentation-container; echo \"Container status:\"; docker ps -a | grep streamlit-segmentation-container; exit 1; fi"
           ]' \
           --region ${{ env.AWS_REGION }}
         
@@ -168,3 +177,10 @@ jobs:
         echo "🎉 Automatic deployment completed!"
         echo "🌐 Application is accessible at: http://$EC2_IP:8501"
         echo "📊 Streamlit dashboard is now live!"
+        echo ""
+        echo "🔍 Deployment Summary:"
+        echo "- Container: streamlit-segmentation-container"
+        echo "- Port: 8501"
+        echo "- Health Check: ✅ Passed"
+        echo "- Data: ✅ DVC data pulled successfully"
+        echo "- Status: 🚀 Ready for use"

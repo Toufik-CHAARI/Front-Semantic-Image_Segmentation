@@ -98,6 +98,27 @@ Add these secrets to your GitHub repository:
 
 ### Step 5: Deploy
 
+#### Automatic Deployment (Recommended)
+
+1. **Set up GitHub Secrets** in your repository:
+   - `AWS_ACCESS_KEY_ID`: Your AWS access key
+   - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
+   - `EC2_INSTANCE_ID`: Your EC2 instance ID
+   - `DVC_S3_BUCKET`: Your DVC S3 bucket name (e.g., `frontend-semantic-image-segmentation`)
+
+2. **Push to master/main branch** to trigger automatic deployment:
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin master
+   ```
+
+3. **Monitor the deployment** in GitHub Actions tab
+
+#### Manual Deployment
+
+If you need to deploy manually on your EC2 instance:
+
 1. **Push to main branch** - CI/CD will automatically deploy
 2. **Or deploy manually**:
    ```bash
