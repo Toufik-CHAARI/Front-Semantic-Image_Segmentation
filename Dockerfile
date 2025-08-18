@@ -1,5 +1,5 @@
-# Use Python 3.12 slim image
-FROM python:3.12-slim
+# Use Python 3.11 slim image for better compatibility
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -13,11 +13,14 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
+# Upgrade pip for better package compatibility
+RUN pip install --upgrade pip
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install DVC with S3 support
-RUN pip install --no-cache-dir dvc[s3]
+# Install DVC with S3 support (if not already in requirements.txt)
+RUN pip install --no-cache-dir dvc[s3] || true
 
 # Copy application code
 COPY . .
