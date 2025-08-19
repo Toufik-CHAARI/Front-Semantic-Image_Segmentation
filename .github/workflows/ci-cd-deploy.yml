@@ -50,7 +50,7 @@ jobs:
     - name: Run tests with coverage
       run: |
         echo "🧪 Running tests with coverage..."
-        pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=40
+        pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=80
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

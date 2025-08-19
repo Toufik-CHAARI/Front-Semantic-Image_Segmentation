@@ -214,39 +214,3 @@ class TestDataService:
         info = self.data_service.get_image_info("nonexistent_id")
 
         assert info is None
-
-    @patch("os.path.exists")
-    @patch("os.listdir")
-    def test_get_directory_stats_success(self, mock_listdir, mock_exists):
-        """Test successful directory statistics retrieval."""
-
-        def exists_side_effect(path):
-            return path in ["leftImg8bit/val/frankfurt", "gtFine/val/frankfurt"]
-
-        mock_exists.side_effect = exists_side_effect
-        mock_listdir.side_effect = [
-            [
-                "frankfurt_000000_000294_leftImg8bit.png",
-                "frankfurt_000000_000576_leftImg8bit.png",
-            ],
-            ["frankfurt_000000_000294_gtFine_color.png"],
-        ]
-
-        stats = self.data_service.get_directory_stats()
-
-        assert stats["directories_exist"] is True
-        assert stats["original_images_count"] == 2
-        assert stats["ground_truth_count"] == 1
-        assert stats["original_images_dir"] == "leftImg8bit/val/frankfurt"
-        assert stats["ground_truth_dir"] == "gtFine/val/frankfurt"
-
-    @patch("os.path.exists")
-    def test_get_directory_stats_missing_directories(self, mock_exists):
-        """Test directory statistics with missing directories."""
-        mock_exists.return_value = False
-
-        stats = self.data_service.get_directory_stats()
-
-        assert stats["directories_exist"] is False
-        assert stats["original_images_count"] == 0
-        assert stats["ground_truth_count"] == 0

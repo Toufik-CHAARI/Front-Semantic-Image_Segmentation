@@ -17,7 +17,7 @@ from app.config import config
 class APIService:
     """Service class for handling API communications."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = config.API_BASE_URL
         self.timeout = config.REQUEST_TIMEOUT
 
@@ -32,7 +32,7 @@ class APIService:
             response = requests.get(
                 config.get_api_url("/"), timeout=config.HEALTH_CHECK_TIMEOUT
             )
-            return response.status_code == 200
+            return bool(response.status_code == 200)
         except requests.exceptions.ConnectionError:
             return False
         except Exception:
@@ -117,7 +117,7 @@ class APIService:
         Returns:
             Dict[str, Any]: Parsed metadata
         """
-        metadata = {
+        metadata: Dict[str, Any] = {
             "file_size": file_size,
             "status_code": response.status_code,
             "headers": dict(response.headers),

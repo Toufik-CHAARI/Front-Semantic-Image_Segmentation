@@ -3,7 +3,7 @@ UI Components module for handling Streamlit UI operations.
 Separates UI logic from business logic.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import streamlit as st
 from PIL import Image
@@ -15,16 +15,16 @@ class UIComponents:
     """Class for handling UI components and display logic."""
 
     @staticmethod
-    def setup_page():
+    def setup_page() -> None:
         """Configure the Streamlit page settings."""
         st.set_page_config(
             page_title=config.PAGE_TITLE,
             page_icon=config.PAGE_ICON,
-            layout=config.LAYOUT,
+            layout=config.LAYOUT,  # type: ignore
         )
 
     @staticmethod
-    def display_header():
+    def display_header() -> None:
         """Display the application header."""
         st.title("🎯 Semantic Image Segmentation")
         st.markdown("---")
@@ -34,7 +34,7 @@ class UIComponents:
         )
 
     @staticmethod
-    def display_api_status(is_healthy: bool):
+    def display_api_status(is_healthy: bool) -> None:
         """Display API health status."""
         if is_healthy:
             st.success("✅ API is healthy and responding")
@@ -42,7 +42,7 @@ class UIComponents:
             st.error("❌ API is not responding")
 
     @staticmethod
-    def display_data_status(is_valid: bool, errors: list):
+    def display_data_status(is_valid: bool, errors: List[str]) -> None:
         """Display data directory status."""
         if is_valid:
             st.success("✅ Data directories are valid")
@@ -52,7 +52,7 @@ class UIComponents:
                 st.error(f"  - {error}")
 
     @staticmethod
-    def create_image_selector(image_ids: list) -> Optional[str]:
+    def create_image_selector(image_ids: List[str]) -> Optional[str]:
         """Create an image selector dropdown."""
         if not image_ids:
             st.warning("No images available. Please check your data directories.")
@@ -86,7 +86,7 @@ class UIComponents:
         return None
 
     @staticmethod
-    def display_image_info(image_info: Optional[Dict[str, Any]]):
+    def display_image_info(image_info: Optional[Dict[str, Any]]) -> None:
         """Display information about the selected image."""
         if image_info:
             with st.expander("📊 Image Information"):
@@ -112,101 +112,118 @@ class UIComponents:
                         st.write(f"**GT Size:** {gt_size}")
 
     @staticmethod
-    def display_images(
-        original_image: Image.Image,
-        predicted_mask: Optional[Image.Image] = None,
-        ground_truth: Optional[Image.Image] = None,
-    ):
-        """Display images in a grid layout."""
-        cols = st.columns(3)
-
-        with cols[0]:
-            st.subheader("Original Image")
-            st.image(original_image, use_column_width=True)
-
-        with cols[1]:
-            st.subheader("Predicted Mask")
-            if predicted_mask:
-                st.image(predicted_mask, use_column_width=True)
-            else:
-                st.info("No prediction available")
-
-        with cols[2]:
-            st.subheader("Ground Truth")
-            if ground_truth:
-                st.image(ground_truth, use_column_width=True)
-            else:
-                st.info("No ground truth available")
+    def display_original_image(image: Image.Image, image_id: str) -> None:
+        """Display the original image."""
+        st.subheader("📸 Original Image")
+        st.image(image, caption=f"Image ID: {image_id}", use_container_width=True)
 
     @staticmethod
-    def display_prediction_metadata(metadata: Optional[Dict[str, Any]]):
-        """Display prediction metadata and statistics."""
+    def display_ground_truth(image: Image.Image, image_id: str) -> None:
+        """Display the ground truth image."""
+        st.subheader("🎯 Ground Truth")
+        st.image(image, caption=f"Ground Truth: {image_id}", use_container_width=True)
+
+    @staticmethod
+    def display_predicted_mask(
+        mask_image: Image.Image, metadata: Optional[Dict[str, Any]]
+    ) -> None:
+        """Display the predicted segmentation mask."""
+        st.subheader("🔮 Predicted Segmentation Mask")
+        st.image(mask_image, caption="AI Prediction", use_container_width=True)
+
         if metadata:
-            with st.expander("📈 Prediction Statistics"):
+            with st.expander("📊 Prediction Metadata"):
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    st.write(f"**File Size:** {metadata['file_size']:,} bytes")
-                    st.write(f"**Status Code:** {metadata['status_code']}")
-
-                    if "processing_time" in metadata:
-                        st.write(f"**Processing Time:** {metadata['processing_time']}")
+                    st.write(
+                        f"**File Size:** {metadata.get('file_size', 'N/A'):,} bytes"
+                    )
+                    st.write(f"**Status Code:** {metadata.get('status_code', 'N/A')}")
 
                 with col2:
+                    if "processing_time" in metadata:
+                        st.write(f"**Processing Time:** {metadata['processing_time']}")
                     if "image_stats" in metadata:
-                        stats = metadata["image_stats"]
-                        if isinstance(stats, dict):
-                            for key, value in stats.items():
-                                st.write(f"**{key.title()}:** {value}")
-                        else:
-                            st.write(f"**Image Stats:** {stats}")
+                        st.write("**Image Statistics:**")
+                        st.json(metadata["image_stats"])
 
     @staticmethod
-    def display_error(error_message: str):
-        """Display error messages in a consistent format."""
-        st.error(f"❌ {error_message}")
+    def display_comparison(
+        original: Image.Image,
+        ground_truth: Optional[Image.Image],
+        predicted: Image.Image,
+    ) -> None:
+        """Display a comparison of original, ground truth, and predicted images."""
+        st.subheader("🔄 Image Comparison")
+
+        if ground_truth:
+            # Three-column layout
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.image(original, caption="Original", use_container_width=True)
+
+            with col2:
+                st.image(ground_truth, caption="Ground Truth", use_container_width=True)
+
+            with col3:
+                st.image(predicted, caption="Predicted", use_container_width=True)
+        else:
+            # Two-column layout
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.image(original, caption="Original", use_container_width=True)
+
+            with col2:
+                st.image(predicted, caption="Predicted", use_container_width=True)
 
     @staticmethod
-    def display_success(message: str):
-        """Display success messages in a consistent format."""
+    def display_error_message(error: str) -> None:
+        """Display an error message."""
+        st.error(f"❌ Error: {error}")
+
+    @staticmethod
+    def display_success_message(message: str) -> None:
+        """Display a success message."""
         st.success(f"✅ {message}")
 
     @staticmethod
-    def display_warning(message: str):
-        """Display warning messages in a consistent format."""
+    def display_warning_message(message: str) -> None:
+        """Display a warning message."""
         st.warning(f"⚠️ {message}")
 
     @staticmethod
-    def display_info(message: str):
-        """Display info messages in a consistent format."""
+    def display_info_message(message: str) -> None:
+        """Display an info message."""
         st.info(f"ℹ️ {message}")
 
     @staticmethod
-    def create_sidebar():
-        """Create the sidebar with additional options."""
-        with st.sidebar:
-            st.header("⚙️ Settings")
+    def create_download_button(
+        image: Image.Image, filename: str, button_text: str
+    ) -> None:
+        """Create a download button for an image."""
+        import io
 
-            # API Configuration
-            st.subheader("API Configuration")
-            api_url = st.text_input(
-                "API Base URL",
-                value=config.API_BASE_URL,
-                help="Base URL for the segmentation API",
-            )
+        # Convert image to bytes
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format="PNG")
+        img_bytes = img_buffer.getvalue()
 
-            # Data Configuration
-            st.subheader("Data Configuration")
-            st.write(f"**Images Directory:** {config.ORIGINAL_IMAGES_DIR}")
-            st.write(f"**Ground Truth Directory:** {config.GROUND_TRUTH_DIR}")
+        st.download_button(
+            label=button_text,
+            data=img_bytes,
+            file_name=filename,
+            mime="image/png",
+        )
 
-            # Application Info
-            st.subheader("ℹ️ About")
-            st.write("Semantic Image Segmentation using Cityscapes dataset")
-            st.write("Powered by Streamlit and remote API")
+    @staticmethod
+    def display_loading_spinner(text: str = "Processing...") -> Any:
+        """Display a loading spinner."""
+        return st.spinner(text)
 
-            return api_url
-
-
-# Global UI components instance
-ui_components = UIComponents()
+    @staticmethod
+    def display_progress_bar(progress: float, text: str = "Progress") -> None:
+        """Display a progress bar."""
+        st.progress(progress, text=text)

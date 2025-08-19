@@ -128,7 +128,7 @@ test: ## Run tests
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage
 	$(call print_status,Running tests with coverage...)
-	@pytest tests/ --cov=app --cov-report=term-missing --cov-report=html:htmlcov --cov-fail-under=40
+	@pytest tests/ --cov=app --cov-report=term-missing --cov-report=html:htmlcov --cov-fail-under=80
 
 .PHONY: test-html
 test-html: ## Run tests with HTML report

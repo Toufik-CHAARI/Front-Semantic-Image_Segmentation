@@ -4,7 +4,7 @@ Manages file operations, DVC data, and image processing.
 """
 
 import os
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import streamlit as st
 from PIL import Image
@@ -15,7 +15,7 @@ from app.config import config
 class DataService:
     """Service class for handling data operations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.original_images_dir = config.ORIGINAL_IMAGES_DIR
         self.ground_truth_dir = config.GROUND_TRUTH_DIR
 
@@ -114,26 +114,28 @@ class DataService:
             errors.append(
                 f"Original images directory not found: {self.original_images_dir}"
             )
-        else:
-            image_count = len(self.get_available_images())
-            if image_count == 0:
-                errors.append(f"No images found in {self.original_images_dir}")
+        elif not os.listdir(self.original_images_dir):
+            errors.append(
+                f"Original images directory is empty: {self.original_images_dir}"
+            )
 
         # Check ground truth directory
         if not os.path.exists(self.ground_truth_dir):
             errors.append(f"Ground truth directory not found: {self.ground_truth_dir}")
+        elif not os.listdir(self.ground_truth_dir):
+            errors.append(f"Ground truth directory is empty: {self.ground_truth_dir}")
 
         return len(errors) == 0, errors
 
-    def get_image_info(self, image_id: str) -> Optional[dict]:
+    def get_image_info(self, image_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get information about an image.
+        Get detailed information about an image.
 
         Args:
             image_id (str): Image ID
 
         Returns:
-            Optional[dict]: Image information or None if not found
+            Optional[Dict[str, Any]]: Image information or None if not found
         """
         image_path = self.get_image_path(image_id)
         ground_truth_path = self.get_ground_truth_path(image_id)
@@ -142,66 +144,46 @@ class DataService:
             return None
 
         try:
+            # Load image to get details
             image = Image.open(image_path)
+            file_size = os.path.getsize(image_path)
+
             info = {
                 "id": image_id,
-                "path": image_path,
                 "size": image.size,
                 "mode": image.mode,
-                "file_size": os.path.getsize(image_path),
+                "file_size": file_size,
                 "has_ground_truth": os.path.exists(ground_truth_path),
             }
 
+            # Add ground truth info if available
             if info["has_ground_truth"]:
-                gt_image = Image.open(ground_truth_path)
-                info["ground_truth_size"] = gt_image.size
-                info["ground_truth_mode"] = gt_image.mode
+                try:
+                    gt_image = Image.open(ground_truth_path)
+                    info["ground_truth_size"] = gt_image.size
+                    info["ground_truth_mode"] = gt_image.mode
+                except Exception:
+                    info["ground_truth_size"] = None
+                    info["ground_truth_mode"] = None
 
             return info
+
         except Exception as e:
             st.error(f"Error getting image info for {image_id}: {str(e)}")
             return None
 
-    def get_directory_stats(self) -> dict:
+    def get_sample_images(self, count: int = 5) -> List[str]:
         """
-        Get statistics about the data directories.
+        Get a sample of available image IDs.
+
+        Args:
+            count (int): Number of sample images to return
 
         Returns:
-            dict: Directory statistics
+            List[str]: List of sample image IDs
         """
-        stats = {
-            "original_images_dir": self.original_images_dir,
-            "ground_truth_dir": self.ground_truth_dir,
-            "original_images_count": 0,
-            "ground_truth_count": 0,
-            "directories_exist": False,
-        }
-
-        # Check if directories exist
-        if os.path.exists(self.original_images_dir) and os.path.exists(
-            self.ground_truth_dir
-        ):
-            stats["directories_exist"] = True
-
-            # Count files
-            try:
-                original_files = [
-                    f
-                    for f in os.listdir(self.original_images_dir)
-                    if f.endswith("_leftImg8bit.png")
-                ]
-                stats["original_images_count"] = len(original_files)
-
-                ground_truth_files = [
-                    f
-                    for f in os.listdir(self.ground_truth_dir)
-                    if f.endswith("_gtFine_color.png")
-                ]
-                stats["ground_truth_count"] = len(ground_truth_files)
-            except Exception as e:
-                st.error(f"Error counting files: {str(e)}")
-
-        return stats
+        all_images = self.get_available_images()
+        return all_images[:count] if all_images else []
 
 
 # Global data service instance
