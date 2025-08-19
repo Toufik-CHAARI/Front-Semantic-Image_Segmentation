@@ -146,13 +146,22 @@ class TestDataService:
         assert len(errors) == 0
 
     @patch("os.path.exists")
-    def test_validate_data_directories_missing_original(self, mock_exists):
+    @patch("os.listdir")
+    def test_validate_data_directories_missing_original(
+        self, mock_listdir, mock_exists
+    ):
         """Test validation with missing original images directory."""
 
         def exists_side_effect(path):
             return path == "gtFine/val/frankfurt"
 
+        def listdir_side_effect(path):
+            if path == "gtFine/val/frankfurt":
+                return ["some_file.png"]
+            return []
+
         mock_exists.side_effect = exists_side_effect
+        mock_listdir.side_effect = listdir_side_effect
 
         is_valid, errors = self.data_service.validate_data_directories()
 
@@ -161,13 +170,22 @@ class TestDataService:
         assert "Original images directory not found" in errors[0]
 
     @patch("os.path.exists")
-    def test_validate_data_directories_missing_ground_truth(self, mock_exists):
+    @patch("os.listdir")
+    def test_validate_data_directories_missing_ground_truth(
+        self, mock_listdir, mock_exists
+    ):
         """Test validation with missing ground truth directory."""
 
         def exists_side_effect(path):
             return path == "leftImg8bit/val/frankfurt"
 
+        def listdir_side_effect(path):
+            if path == "leftImg8bit/val/frankfurt":
+                return ["some_file.png"]
+            return []
+
         mock_exists.side_effect = exists_side_effect
+        mock_listdir.side_effect = listdir_side_effect
 
         is_valid, errors = self.data_service.validate_data_directories()
 
