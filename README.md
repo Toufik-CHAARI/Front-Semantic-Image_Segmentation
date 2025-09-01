@@ -1,3 +1,6 @@
+
+![Demo](screenshot-streamlit-segmention-app.gif)
+
 # 🎯 Semantic Image Segmentation App
 
 A modern Streamlit application for semantic image segmentation using the Cityscapes dataset and a remote API. Built with a modular architecture following separation of concerns principles.
