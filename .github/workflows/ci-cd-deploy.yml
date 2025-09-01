@@ -25,6 +25,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pbr==6.1.0  # Ensure pbr is installed for bandit
     
     - name: Run linting
       run: |

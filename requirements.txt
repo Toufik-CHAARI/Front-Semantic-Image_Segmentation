@@ -137,5 +137,6 @@ pytest-html==4.1.1
 black==23.11.0
 isort==5.12.0
 flake8==6.1.0
-bandit==1.7.5
+bandit==1.8.0
 mypy==1.7.1
+pbr==6.1.0
