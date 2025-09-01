@@ -153,26 +153,10 @@ def display_results(
         UIComponents.display_error_message("No prediction result available")
         return
 
-    # Display original image
-    if image_id:
-        UIComponents.display_original_image(original_image, image_id)
-    else:
-        st.subheader("📸 Original Image")
-        st.image(original_image, use_container_width=True)
-
-    # Display ground truth if available
-    if ground_truth:
-        if image_id:
-            UIComponents.display_ground_truth(ground_truth, image_id)
-        else:
-            st.subheader("🎯 Ground Truth")
-            st.image(ground_truth, use_container_width=True)
-
-    # Display predicted mask
-    UIComponents.display_predicted_mask(predicted_mask, metadata)
-
-    # Display comparison
-    UIComponents.display_comparison(original_image, ground_truth, predicted_mask)
+    # Display comparison (shows original, ground truth, and predicted mask)
+    UIComponents.display_comparison(
+        original_image, ground_truth, predicted_mask, metadata
+    )
 
     # Create download buttons
     st.subheader("💾 Download Results")

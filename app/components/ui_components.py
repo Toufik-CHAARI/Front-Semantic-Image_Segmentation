@@ -153,6 +153,7 @@ class UIComponents:
         original: Image.Image,
         ground_truth: Optional[Image.Image],
         predicted: Image.Image,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Display a comparison of original, ground truth, and predicted images."""
         st.subheader("🔄 Image Comparison")
@@ -178,6 +179,24 @@ class UIComponents:
 
             with col2:
                 st.image(predicted, caption="Predicted", use_container_width=True)
+
+        # Display metadata if available
+        if metadata:
+            with st.expander("📊 Prediction Metadata"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.write(
+                        f"**File Size:** {metadata.get('file_size', 'N/A'):,} bytes"
+                    )
+                    st.write(f"**Status Code:** {metadata.get('status_code', 'N/A')}")
+
+                with col2:
+                    if "processing_time" in metadata:
+                        st.write(f"**Processing Time:** {metadata['processing_time']}")
+                    if "image_stats" in metadata:
+                        st.write("**Image Statistics:**")
+                        st.json(metadata["image_stats"])
 
     @staticmethod
     def display_error_message(error: str) -> None:
